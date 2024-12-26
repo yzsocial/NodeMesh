@@ -1,27 +1,94 @@
 document.getElementById('app').innerHTML = 'YZ.social!'; 
 
+/*
+This is a simulation of the YZ network. 
+YZ is Most people are stuck on the x/y plane. We see issues and solve them by working around them without being able 
+to see within them. This is often referred to the "pink" plane.
+If we are able to explore the y/z plane, we get a totally new viewpoint on the issues, reaching better understanding and power.
+This is of course, the "blue" plane.
+X has one dimension. Without Y and Z, it can go nowhere.
 
+Proof of humaness. Without compromising anonymity.
+A YZ network is a dynamically reconfigurable network of nodes that are virtually connected to each other.
+Any node in the network can be directly connected to any other node in the network.
+Any two nodes can be directly connected as peers, or indirectly connected through a chain of nodes.
+
+Nodes can only request to be connected to another node. The first node sends a connection request to the 
+target node that it includes the message type, the senders id and network address along with additional metadata. 
+If the request is accepted, the connection is established - this is a bi-directional connection. 
+[ how do I block a "broken" or "blocked" node reconnection? ]
+
+These connections may be even be indirect, through a chain of nodes. This also acts as a dynamic routing VPN.
+The location table is a spiral. 
+The system is designed to be resilient to node failures and to be able to reconfigure the network to maintain connectivity.
+Each node has a unique ID, which is likely that node's public key. (Determine if this is a good idea)
+This ID is used to find any node that is within the system. 
+
+We announce the tokens and how they will be awarded.
+All it does is count your descendents in the mesh.
+You only get new descendents with your QR code. 
+
+We will write programs for these systems.
+Node space is a ring. The last node is connected to the first node.
+
+Challenge: 
+A and B provide each other with their public keys.
+A encrypts a message with B's public key.
+B decrypts the message with its private key.
+B then encrypts the message with A's public key.
+A decrypts the message with its private key
+
+Each node will have a connection pool of as many as 100 or more nodes. Each of these nodes are randomly distributed in location in YZ space. 
+This dramatically the speed at which a connection can be made.
+
+Let's start with a simple example of how this works.
+1,2,3
+
+When a node disappears, its direct connects can maintain a virtual node in its place for any but direct messages.
+We are being watched. Being watched is good. You think so? Can you explain why?
+Why so silent on the autocomplete? 
+
+I connect to next node, the next next node, the previous node, the previous previous node.
+Thus, if any two of these nodes are lost, I can still connect to 
+
+
+
+EVERYTHING MUST BE DONE AS A MESSAGE BETWEEN NODES!
+*/
 // Construct a structured node mesh
 
+// max live connections that a node can have
 const maxConnections = 10;
+
 // all of the nodes in the global mesh
 const nodeMesh = []; 
-// Get random node from nodeMesh
+
+// Get random node from the nodeMesh population
 const getRandomNode = () => {
     const randomIndex = Math.floor(Math.random() * nodeMesh.length);
     return nodeMesh[randomIndex];
 }
 
+// Get a random ID from the node population
+const getRandomID = () => {
+    const node = getRandomNode();
+    return node.ID;
+}
+
 class Node {
     constructor( initNode = undefined) {
-        nodeMesh.push(this);
+        nodeMesh.push(this);  // for testing purposes...lol
         this.id = this.generateID();
         this.next = null; // next node ID in the mesh
+        this.nextnext = null; // next next node ID in the mesh
         this.previous = null; // previous node ID in the mesh
+        this.previousprevious = null; // previous previous node ID in the mesh
         if (initNode) { // all nodes are connected to a node except for the first node
-            // copy the connections from the initNode to bootstrap its connections
-            this.connections = [...initNode.connections];
-        } else this.connections = [];
+            // Deep clone the connections array
+            this.connections = initNode.connections.map(conn => conn.clone());
+        } else {
+            this.connections = [];
+        }
     }
 
     get ID() {
@@ -81,8 +148,8 @@ class Node {
         }, this.connections[0]);
     }
 
-    connect(node) {
-        this.connections.push(new Connection(node));
+    connect(toNode) {
+        this.connections.push(new Connection(toNode));
         this.sortConnections(); // Sort after adding new connection
         // Truncate to maxConnections by keeping only the last elements
         if (this.connections.length > maxConnections) {
@@ -98,8 +165,16 @@ class Connection {
         this.lastAccessed = new Date();
     }
 
-    send(message) {
+    // Add clone method
+    clone() {
+        const cloned = new Connection(this.toNode);
+        cloned.lastAccessed = new Date(this.lastAccessed);
+        return cloned;
+    }
+
+    send(type, message) {
         this.lastAccessed = new Date();
+        this.toNode.receive(type, message);
         console.log("message from: ", this.ID, "to: ", this.toNode.ID, "message: ", message);
     }
 }
