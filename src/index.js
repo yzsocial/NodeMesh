@@ -11,6 +11,10 @@ X has one dimension. Without Y and Z, it can go nowhere.
 All Communication MUST BE SENT AS A MESSAGE BETWEEN NODES!
 There is never direct access between nodes. It simply is not possible.
 
+nodeDistance
+All nodes have a "distance" from each other. This is a measure of how far apart the nodes are, defined 
+as converting the node IDs to a number and subtracting. This can be a positive or negative number.
+
 Message Types:
 RequestConnection - Request a connection from a node
 ApproveConnection - Approve a connection request from a node, the return message will contain the address of the 
@@ -20,9 +24,10 @@ InsertConnection - Insert a new connection into the mesh
 UpdateConnection - Update an existing connection address 
 */
 
+//-----------------------------------------------------------------------
 // Simulation
 // Construct a structured node mesh
-
+//-----------------------------------------------------------------------
 // max live connections that a node can have
 const maxConnections = 10;
 
@@ -49,28 +54,29 @@ for(let i = 0; i < 100; i++) {
     console.log(node.ID);
 }
 
+//-----------------------------------------------------------------------
 // A node has a unique ID, a public key, a private key, and a list of connections
 // The ID is the same as the public key
 // initConnections is an array of node connections to connect to
 // initConnections[0] is the "sponsor" node that the new node will initiate connection with
+//-----------------------------------------------------------------------
 class Node {
     constructor( initConnections = undefined) {
         nodeMesh.push(this);  // for testing purposes...lol
-        this.generateKeys();
+        this.generateKeys(); // generate the public/private key pair
         this.address = this; // this would normally be a public IP address
         this.next = []; // next node connections in the mesh
         this.previous = []; // previous node conections in the mesh
-        this.connections = [];
-        if (initConnections)
+        this.connections = []; // list of connections to other nodes
+        if (initConnections) // if we have a list of connections, connect to them
             this.requestConnection(initConnections);
     }
 
     // this is also the public key for the node
-    get ID() {
-        return this.publicKey;
-    }
+    get ID() { return this.publicKey; }
 
     get sharedSecret() { return this.generateSecret(); }
+    
     // Calculate distance between two node IDs
     static getDistance(id1, id2) {
         // Convert both IDs to their binary representation
@@ -97,8 +103,8 @@ class Node {
         return Node.getDistance(this.ID, otherNode.ID);
     }
 
-    generateConnection(node) {
-        return new Connection(node);
+    generateConnection(toNode) {
+        return new Connection(toNode);
     }
 
     // this is a unique ID for the node
@@ -108,6 +114,7 @@ class Node {
         this.privateKey = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     }
 
+    // this is a unique shared secret between two connected nodes
     generateSecret() {
         return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     }
@@ -119,7 +126,7 @@ class Node {
         });
     }
 
-    // sort the connections by date whenever we add a new connection so we can easily find the oldest connection
+    // sort the connections by date whenever we add a new connection so we can easily delete the oldest connections
     sortDates() {
         this.connections.sort((a, b) => {
             // Sort by oldest first (smaller timestamps first)
@@ -144,7 +151,7 @@ class Node {
         this.sendMessage(connection, "approveConnection", {
             address: this.address,
             sharedSecret: this.generateSecret(),
-            nodes: this.connections.map(conn => conn.ID);
+            nodes: this.connections.map(conn => conn.ID)
         });
     }
 
@@ -172,12 +179,17 @@ class Node {
 
     }
 }
-
+//-----------------------------------------------------------------------
+// Connection Class
+// A connection holds information about a target node that allows another
+// node to send messages to it.
+//-----------------------------------------------------------------------
 class Connection {
-    constructor(toConnection) {
+    constructor(node, toConnection) {
         this.address = toConnection.address;
+        this.nodeDistance = node.distanceTo(toConnection);
         this.ID = toConnection.ID;
-        this._sharedSecret = toConnection.sharedSecret;
+        this._sharedSecret = node.generateSecret();
         this.lastAccessed = new Date();
     }
 
