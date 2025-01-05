@@ -11,6 +11,8 @@ X has one dimension. Without Y and Z, it can go nowhere.
 All Communication MUST BE SENT AS A MESSAGE BETWEEN NODES!
 There is never direct access between nodes. It simply is not possible.
 
+chain - a chain is a list of nodes that are connected to each other.
+[previous]<->[node]<->[next]
 nodeDistance
 All nodes have a "distance" from each other. This is a measure of how far apart the nodes are, defined 
 as converting the node IDs to a number and subtracting. This can be a positive or negative number.
@@ -34,10 +36,15 @@ key of the next node in the chain.
 // The ID is the same as the public key
 // initConnection is the "sponsor" node that the new node will initiate connection with
 //-----------------------------------------------------------------------
+
+// max live connections that a node can have
+const MAX_CONNECTIONS = 10;
+
 class Node {
-    constructor( initConnection = undefined) {
+    constructor( initConnection = undefined, index) {
         nodeMesh.push(this);  // for testing purposes...lol
         this.generateKeys(); // generate my public/private key pair
+        if(index) this.publicKey = index;
         this.address = this; // this would normally be a public IP address - for simulation, it's just the node itself
         this.next = []; // next node connections in the mesh
         this.previous = []; // previous node conections in the mesh
@@ -46,7 +53,7 @@ class Node {
             this.connections.unshift(new Connection(initConnection));
             this.sendMessage(new Connection(this), new Connection(initConnection), "requestConnection");
         }
-        console.log("--------------------------Node constructor", this.ID);
+    //    console.log("--------------------------Node constructor", this.ID);
     }
 
     // this is also the public key for the node
@@ -89,102 +96,11 @@ class Node {
         });
     }
 
-    // find the closest node connection to the target node ID using binary search
-    static findClosestNode(nodeId, connections, currentNodeId) {
-        if (!connections || connections.length === 0) return null;
-        if (connections.length === 1) {
-            // Only return the connection if it's in the correct direction
-            const isGreater = Node.getDistance(currentNodeId, nodeId) > 0;
-            const connectionIsGreater = Node.getDistance(currentNodeId, connections[0].ID) > 0;
-            return (isGreater === connectionIsGreater) ? connections[0] : null;
-        }
-        
-        // Determine search direction based on target node position
-        const searchGreater = Node.getDistance(currentNodeId, nodeId) > 0;
-        
-        let left = 0;
-        let right = connections.length - 1;
-        
-        // Binary search to find the closest position
-        while (left <= right) {
-            if (right - left <= 1) {
-                const leftDist = Node.getDistance(currentNodeId, connections[left].ID);
-                const rightDist = Node.getDistance(currentNodeId, connections[right].ID);
-                
-                // Only consider connections in the correct direction
-                const leftValid = searchGreater ? leftDist > 0 : leftDist < 0;
-                const rightValid = searchGreater ? rightDist > 0 : rightDist < 0;
-                
-                if (!leftValid && !rightValid) return null;
-                if (!leftValid) return connections[right];
-                if (!rightValid) return connections[left];
-                
-                // Both are valid, return the closer one
-                const distLeft = Math.abs(Node.getDistance(connections[left].ID, nodeId));
-                const distRight = Math.abs(Node.getDistance(connections[right].ID, nodeId));
-                return distLeft <= distRight ? connections[left] : connections[right];
-            }
-            
-            const mid = Math.floor((left + right) / 2);
-            const midVal = connections[mid].ID;
-            
-            if (midVal === nodeId) {
-                return connections[mid];
-            }
-            
-            if (midVal < nodeId) {
-                left = mid;
-            } else {
-                right = mid;
-            }
-        }
-        
-        // Verify the found connection is in the correct direction
-        const foundDist = Node.getDistance(currentNodeId, connections[left].ID);
-        const isValidDirection = searchGreater ? foundDist > 0 : foundDist < 0;
-        return isValidDirection ? connections[left] : null;
-    }
-
-    // Find the closest connection from newConnections, comparing against referenceConnection
-    static findClosestFromArray(nodeId, referenceConnection, newConnections) {
-        if (!newConnections || newConnections.length === 0) return referenceConnection;
-        
-        // Start with the reference connection as our best match
-        let closestConnection = referenceConnection;
-        let minDistance = Math.abs(Node.getDistance(nodeId, referenceConnection.ID));
-        
-        // Linear search through newConnections to find any closer match
-        for (const connection of newConnections) {
-            const distance = Math.abs(Node.getDistance(nodeId, connection.ID));
-            if (distance < minDistance) {
-                minDistance = distance;
-                closestConnection = connection;
-            }
-        }
-        
-        return closestConnection;
-    }
-
-    // Instance method wrapper
-    findClosestFromArray(targetNode, referenceConnection, newConnections) {
-        return Node.findClosestFromArray(targetNode.ID, referenceConnection, newConnections);
-    }
-
-    // Update the instance method to use the static method
-    findClosestNode(targetNode) {
-        if (Node.getDistance(this.ID, targetNode.ID) > 0) {
-            // Target is greater than current node, search in next connections
-            return Node.findClosestNode(targetNode.ID, this.next);
-        } else {
-            // Target is less than current node, search in previous connections
-            return Node.findClosestNode(targetNode.ID, this.previous);
-        }
-    }
 
     // add the new connection and send a confirmation message back to the requesting node
     // the confirmation message will include a shared secret.
     confirmConnection(toConnection) {
-        console.log("--------------------- confirmConnection", toConnection.ID, this.ID);
+    //    console.log("confirmConnection --------------------- ", toConnection.ID, this.ID);
         const fromConnection = new Connection(this);
         const secret = this.generateSecret();
         fromConnection.secret = secret;
@@ -195,7 +111,7 @@ class Node {
 
     // response from a node that has approved a connection request
     approvedConnection(fromConnection) {
-        console.log("--------------------- approvedConnection", fromConnection.ID, this.ID);
+    //    console.log("approvedConnection --------------------- ", fromConnection.ID, this.ID);
         const updated = this.updateConnection(fromConnection);
         if (!updated) this.connections.push(new Connection(fromConnection));
         if (this.connections.length > MAX_CONNECTIONS) {
@@ -209,14 +125,14 @@ class Node {
 
     // insert a new connection into the mesh such that the previous node ID is less than the new connection ID
     // and the next node ID is greater than the new connection ID
-    insertConnection(fromConnection, direction) {
-        console.log("--------------------- insertConnection", fromConnection.ID, this.ID);
+    insertConnection(fromConnection) {
+    //    console.log("insertConnection --------------------- ", this.ID, fromConnection.ID);
         if(this.distanceTo(fromConnection) < 0) { // the fromConnection is to the left of this node
-            console.log("insert to the left ", this.previous.length);
+            // console.log("insert to the left ", this.previous.length);
             if(this.previous.length > 0) {
                 // if fromConnection is closer to this node than the previous node, insert it
                 if( Node.getDistance(this.previous[0].ID, fromConnection.ID) > 0 ){
-                    console.log("insert left", this.previous[0].ID, fromConnection.ID, this.ID);
+                    // console.log("insert left", this.previous[0].ID, fromConnection.ID, this.ID);
                     const previous = this.previous[0];
                     this.previous.unshift(fromConnection.clone());
                     // send the new connection back to the previous node
@@ -224,26 +140,34 @@ class Node {
                     // send the new connection back to requesting connection
                     this.sendMessage(new Connection(this), fromConnection, "setNextConnection");
                     this.sendMessage(new Connection(previous), fromConnection, "setPreviousConnection");
-                } else this.sendMessage(fromConnection, "left", "insertConnection");
+                } else {
+                    let closest = this.findConnection(fromConnection.ID, true);
+                    if(closest) closest.address.sendMessage(fromConnection, null, "insertConnection");
+                    else console.log("closest not found", fromConnection.ID, this.ID);
+                }
             } else {
-                console.log("insert to the left, first previous", fromConnection.ID, this.ID);
+                // console.log("insert to the left, first previous", fromConnection.ID, this.ID);
                 this.previous.unshift(fromConnection.clone());
                 this.sendMessage(new Connection(this), fromConnection, "setNextConnection");
             }
         } else if (this.distanceTo(fromConnection) > 0) {
-            console.log("insert to the right ", this.next.length);
+            // console.log("insert to the right ", this.next.length);
             if(this.next.length > 0) {
                 if( Node.getDistance(this.next[0].ID, fromConnection.ID) < 0){
-                    console.log("insert right", this.next[0].ID, fromConnection.ID, this.ID);
+                    // console.log("insert right", this.next[0].ID, fromConnection.ID, this.ID);
                     const next = this.next[0];
                     this.next.unshift(fromConnection.clone());
                     next.address.sendMessage(fromConnection, next, "setPreviousConnection");
                     // send the new connection back to requesting connection
                     this.sendMessage(new Connection(this), fromConnection, "setPreviousConnection");
                     this.sendMessage(new Connection(next), fromConnection, "setNextConnection");
-                } else this.sendMessage(fromConnection, "right", "insertConnection");
+                } else {
+                    let closest = this.findConnection(fromConnection.ID, true);
+                    if(closest) closest.address.sendMessage(fromConnection, null, "insertConnection");
+                    else console.log("closest not found", fromConnection.ID, this.ID);
+                }
             } else {
-                console.log("insert to the right, first next", this.ID,fromConnection.ID);
+                // console.log("insert to the right, first next", this.ID,fromConnection.ID);
                 this.next.unshift(fromConnection.clone());
                 this.sendMessage(new Connection(this), fromConnection, "setPreviousConnection");
             }
@@ -251,41 +175,41 @@ class Node {
     }
 
     sendMessage(fromConnection, toConnection, messageType, message) {
-        console.log("--------------------- sendMessage", this.ID, fromConnection.ID, toConnection?.ID, messageType);
+    //    console.log("sendMessage ", messageType, " --------------------- ", this.ID, fromConnection.ID, toConnection?.ID);
         if (messageType === "insertConnection") {
-            if(this.ID !== fromConnection.ID) this.insertConnection(fromConnection, toConnection);
+            if(this.ID !== fromConnection.ID) this.insertConnection(fromConnection);
             else {
-                const closest = this.findConnection(fromConnection.ID);
+                const closest = this.findConnection(fromConnection.ID, true);
+                if (closest && closest.ID === fromConnection.ID) console.log("closest is exact", closest.ID);
                 if (closest) closest.address.sendMessage(fromConnection, null, messageType, message);
-                else console.log("No closest node found for ", messageType);
+                else console.error("No closest node found for ", messageType);
             }
-        }
-        else if (toConnection?.ID === this.ID) { // this is me
+        } else if (toConnection?.ID === this.ID) { // this is me
             this.receiveMessage(fromConnection, messageType, message);
         } else {
             const closest = this.findConnection(toConnection?.ID || fromConnection.ID);
-            console.log("closest", closest.ID);
+//            console.log("closest", closest?.ID);
             if (closest) closest.address.sendMessage(fromConnection, toConnection, messageType, message);
-            else console.log("No closest node found for ", messageType);
+            else console.error("No closest node found for ", messageType);
         }
     }
 
     setPreviousConnection(fromConnection) {
-        console.log("--------------------- setPreviousConnection", fromConnection.ID, this.ID);
+//        console.log("setPreviousConnection --------------------- ", fromConnection.ID, this.ID);
         let connection = fromConnection.clone();
         this.previous.unshift(connection);
         this.approvedConnection(connection);
     }
 
     setNextConnection(fromConnection) {
-        console.log("--------------------- setNextConnection", fromConnection.ID, this.ID);
+//        console.log("setNextConnection --------------------- ", fromConnection.ID, this.ID);
         let connection = fromConnection.clone();
         this.next.unshift(connection);
         this.approvedConnection(connection);
     }   
 
     receiveMessage(fromConnection, messageType, message) {
-        console.log("--------------------- receiveMessage", this.ID, fromConnection.ID, this.ID, messageType);
+    //    console.log("receiveMessage --------------------- ", this.ID, fromConnection.ID, this.ID, messageType);
         switch(messageType) {
             case "requestConnection":
                 this.confirmConnection(fromConnection);
@@ -367,9 +291,9 @@ class Node {
             .some(conn => conn.ID === newConnection.ID);
     }
 
-    findConnection(nodeId) {
+    findConnection(nodeId, notExact = false) {
         // Determine search direction based on target nodeId
-        const searchGreater = Node.getDistance(this.ID, nodeId) > 0;
+        let searchGreater = Node.getDistance(this.ID, nodeId) > 0;
         
         let bestConnection = null;
         let bestDistance = Infinity;
@@ -377,6 +301,7 @@ class Node {
         // Helper function to check and update best connection
         const checkConnection = (connection) => {
             // Skip if connection is in wrong direction relative to this.ID
+            if(notExact && connection.ID === nodeId) return;
             const connectionDist = Node.getDistance(this.ID, connection.ID);
             if (searchGreater && connectionDist <= 0) return;
             if (!searchGreater && connectionDist >= 0) return;
@@ -389,39 +314,26 @@ class Node {
             }
         };
 
-        // Search this.connections using binary search since it's sorted
-        let left = 0;
-        let right = this.connections.length - 1;
-        
-        while (left <= right) {
-            const mid = Math.floor((left + right) / 2);
-            const connection = this.connections[mid];
-            const midDist = Node.getDistance(this.ID, connection.ID);
-            
-            // Check if this connection is in the correct direction
-            if ((searchGreater && midDist > 0) || (!searchGreater && midDist < 0)) {
-                checkConnection(connection);
-            }
-            
-            if (connection.ID < nodeId) {
-                left = mid + 1;
-            } else if (connection.ID > nodeId) {
-                right = mid - 1;
-            } else {
-                // Exact match found
-                checkConnection(connection);
-                break;
-            }
+        for (const connection of this.connections) {
+            checkConnection(connection);
         }
-
+ //console.log("bestConnection - connections1 ", nodeId, bestConnection?.ID, notExact);
         // Linear search through this.previous
         for (const connection of this.previous) {
             checkConnection(connection);
         }
-
+ //console.log("bestConnection - previous ", nodeId, bestConnection?.ID);
         // Linear search through this.next
         for (const connection of this.next) {
             checkConnection(connection);
+        }
+ //console.log("bestConnection - next ", nodeId, bestConnection?.ID);
+        if(!bestConnection) {
+            searchGreater = !searchGreater;
+            for (const connection of this.connections) {
+                checkConnection(connection);
+            }
+ //console.log("bestConnection - connections2 ", nodeId, bestConnection?.ID, notExact);
         }
 
         return bestConnection;
@@ -460,8 +372,7 @@ class Connection {
 // The node ID/public key is a unique identifier for the node
 // For simulation purposes, we will use Math.random() to generate a unique ID for each node
 //-----------------------------------------------------------------------
-// max live connections that a node can have
-const MAX_CONNECTIONS = 10;
+
 
 // all of the nodes in the global mesh
 const nodeMesh = []; 
@@ -479,11 +390,10 @@ const getRandomID = () => {
     return node.ID;
 }
 
-new Node(); // create the first node
+new Node(null); // create the first node
 
-for(let i = 0; i < 100; i++) {  
-    console.log("--------------------------Creating node", i);
+for(let i = 2; i < 100000; i++) {  
     // create a new node and connect it to a random node in the mesh
     const node = new Node(getRandomNode());
-    console.log(node.ID);
+    if(i % 1000 === 0)   console.log("Node ", i, node.ID);
 }
