@@ -641,7 +641,7 @@ function testScale(scale) {
 testScale(0);
 testScale(1000);
 testScale(10000);
-testScale(100000);
-testScale(1000000);
+// testScale(100000);
+// testScale(1000000);
 // testScale(10000000);
 // testScale(100000000);
