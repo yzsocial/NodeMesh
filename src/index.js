@@ -43,19 +43,28 @@ let messageCount = 0;
 let messageJumpCount = 0;
 
 class Node {
-    constructor( initConnection = undefined, index) {
-        nodeMesh.push(this);  // for testing purposes...lol
-        this.generateKeys(); // generate my public/private key pair
+    constructor(initNode = undefined, index) {
+        nodeMesh.push(this);
+        this.generateKeys();
         if(index) this.publicKey = index;
-        this.address = this; // this would normally be a public IP address - for simulation, it's just the node itself
-        this.next = []; // next node connections in the mesh
-        this.previous = []; // previous node conections in the mesh
-        this.connections = []; // list of connections to other nodes
-        if (initConnection) {
-            this.connections.unshift(new Connection(initConnection));
-            this.sendMessage(new Connection(this), new Connection(initConnection), "requestConnection");
+        this.address = this;
+        this.next = [];
+        this.previous = [];
+        this.connections = [];
+        
+        // Initialize network properties
+        this.publicIP = null;
+        this.publicPort = null;
+        this.natType = null;
+        this.privateIP = null;
+        this.privatePort = null;
+        
+        if (initNode) {
+            // Make sure we're creating a connection with a Node object
+            const initialConnection = new Connection(initNode);
+            this.connections.unshift(initialConnection);
+            this.sendMessage(new Connection(this), initialConnection, "requestConnection");
         }
-    //    console.log("--------------------------Node constructor", this.ID);
     }
 
     // this is also the public key for the node
@@ -233,6 +242,15 @@ class Node {
                 break;
             case "message":
                 this.processMessage(fromConnection, message);
+                break;
+            case "introducedTo":
+                this.handleIntroduction(fromConnection, message);
+                break;
+            case "endpointInfo":
+                // Now we know our public IP/port as seen by the other node
+                this.publicIP = message.publicIP;
+                this.publicPort = message.publicPort;
+                break;
         }
     }
 
@@ -350,6 +368,142 @@ class Node {
 
         return bestConnection;
     }
+
+    // Introduce two nodes that are both connected to this node
+    introduceNodes(node1Connection, node2Connection) {
+        // First verify both connections exist
+        if (!this.hasConnection(node1Connection) || !this.hasConnection(node2Connection)) {
+            console.error("Can only introduce nodes that are connected to this node");
+            return;
+        }
+
+        // Create introduction messages with full connection context
+        const introMessage1 = {
+            connection: node2Connection.getPublicInfo(),
+            introducer: {
+                ID: this.ID,
+                connection: new Connection(this).getPublicInfo()
+            }
+        };
+
+        const introMessage2 = {
+            connection: node1Connection.getPublicInfo(),
+            introducer: {
+                ID: this.ID,
+                connection: new Connection(this).getPublicInfo()
+            }
+        };
+
+        // Send introductions with proper routing context
+        this.sendMessage(new Connection(this), node1Connection, "introducedTo", introMessage1);
+        this.sendMessage(new Connection(this), node2Connection, "introducedTo", introMessage2);
+    }
+
+    // Check if we have an active connection to this node by ID
+    hasConnection(connection) {
+        const targetID = connection.ID;
+        return [...this.connections, ...this.previous, ...this.next]
+            .some(conn => conn.ID === targetID);
+    }
+
+    // Handle being introduced to a new node
+    handleIntroduction(introducerConnection, message) {
+        // Get introducer's actual ID from the message
+        const introducerID = message.introducer.ID;
+        
+        // Try to find the introducer in our connections
+        let introducerFound = this.findConnection(introducerID);
+        
+        if (!introducerFound) {
+            // If we don't have the introducer connection, establish it first
+            console.log("Establishing connection to introducer first...");
+            const tempConnection = new Connection({
+                ...message.introducer.connection,
+                address: {
+                    sendMessage: () => {},
+                    ...message.introducer.connection
+                }
+            });
+            
+            // Request connection to introducer first
+            this.sendMessage(new Connection(this), tempConnection, "requestConnection");
+            return; // Wait for connection to be established before proceeding
+        }
+
+        // Create new connection with the public information
+        const newConnection = new Connection({
+            ...message.connection,
+            address: {
+                sendMessage: () => {},
+                ...message.connection
+            }
+        });
+
+        // Attempt to establish connection
+        this.establishP2PConnection(newConnection, {
+            publicIP: introducerConnection.publicIP,
+            publicPort: introducerConnection.publicPort
+        });
+    }
+
+    establishP2PConnection(newConnection, introducerInfo) {
+        // Different strategies based on NAT types
+        switch(newConnection.natType) {
+            case 'FullCone':
+                // Can connect directly to the public IP/port
+                this.connectDirect(newConnection);
+                break;
+                
+            case 'RestrictedCone':
+            case 'PortRestrictedCone':
+                // Need hole punching, use introducer info
+                this.connectWithHolePunching(newConnection, introducerInfo);
+                break;
+                
+            case 'Symmetric':
+                // Might need relay if both peers are symmetric NAT
+                this.connectWithRelay(newConnection);
+                break;
+        }
+    }
+
+    // Attempt direct connection and get our public endpoint
+    async connectDirect(targetConnection) {
+        // 1. Send packet to target's public endpoint to create NAT mapping
+        this.sendUDPPacket(targetConnection.publicIP, targetConnection.publicPort, {
+            type: "connectionRequest",
+            privateIP: this.privateIP,
+            privatePort: this.privatePort,
+            ID: this.ID
+        });
+
+        // 2. Target will receive packet and get our public endpoint from the packet
+        // 3. Target sends back our public endpoint info
+        this.sendMessage(new Connection(this), targetConnection, "requestEndpointInfo");
+    }
+
+    // Handle receiving a UDP packet
+    handleUDPPacket(packet, rinfo) {
+        // rinfo contains sender's public endpoint (from UDP packet headers)
+        const { address: senderPublicIP, port: senderPublicPort } = rinfo;
+
+        if (packet.type === "connectionRequest") {
+            // Store sender's endpoint information
+            const senderConnection = this.findConnection(packet.ID);
+            if (senderConnection) {
+                senderConnection.publicIP = senderPublicIP;
+                senderConnection.publicPort = senderPublicPort;
+                senderConnection.privateIP = packet.privateIP;
+                senderConnection.privatePort = packet.privatePort;
+
+                // Send back their public endpoint info
+                this.sendMessage(new Connection(this), senderConnection, "endpointInfo", {
+                    publicIP: senderPublicIP,
+                    publicPort: senderPublicPort
+                });
+            }
+        }
+    }
 }
 
 //-----------------------------------------------------------------------
@@ -358,24 +512,47 @@ class Node {
 // node to send messages to it.
 //-----------------------------------------------------------------------
 class Connection {
-    constructor(toConnection) {
-        this.address = toConnection.address;
-        this.ID = toConnection.ID;
-        this.secret = toConnection.secret;
+    constructor(node) {
+        // Basic identification
+        this.ID = node.ID;
+        
+        // Handle both Node instances and temporary node-like objects
+        if (node.address) {
+            // If it's a Connection object or has an address property
+            this.address = node.address;
+        } else {
+            // If it's a Node instance or a temporary node-like object
+            this.address = node;
+        }
+        
         this.lastAccessed = new Date();
         this.jumpCount = 0;
+
+        // Real network information (get from the actual node/object)
+        const sourceNode = this.address;
+        this.publicIP = sourceNode.publicIP;
+        this.publicPort = sourceNode.publicPort;
+        this.natType = sourceNode.natType;
+        this.privateIP = sourceNode.privateIP;
+        this.privatePort = sourceNode.privatePort;
+
+        // For secure communication
+        this.secret = sourceNode.secret;
     }
 
-    set secret(secret) { this._secret = secret; }
-    get secret() { return this._secret; }
-
-    get ID() { this.lastAccessed = new Date(); return this._ID; }
-    set ID(id) { this.lastAccessed = new Date(); this._ID = id; }
-
-    // Add clone method
+    // Clone method needs to copy all network info and maintain node reference
     clone() {
-        const cloned = new Connection(this);
-        return cloned;
+        return new Connection(this);
+    }
+
+    // Get connection info that can be shared with other peers
+    getPublicInfo() {
+        return {
+            ID: this.ID,
+            publicIP: this.publicIP,
+            publicPort: this.publicPort,
+            natType: this.natType
+        };
     }
 }
 
@@ -403,12 +580,13 @@ const getRandomID = () => {
     return node.ID;
 }
 
-new Node(null); // create the first node
+new Node(); // create the first node
 
 for(let i = 0; i < 10000; i++) {  
-    // create a new node and connect it to a random node in the mesh
-    const node = new Node(new Connection(getRandomNode()));
-    if(i % 10000 === 0)   console.log("Node ", i, node.ID);
+    // Pass the random node itself, not a connection
+    const randomNode = getRandomNode();
+    const node = new Node(randomNode);
+    if(i % 10000 === 0) console.log("Node ", i, node.ID);
 }
 
 let ac = 0, an = 0, ap = 0, mc = 0, mp = 0, mn = 0;
