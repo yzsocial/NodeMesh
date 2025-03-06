@@ -38,7 +38,7 @@ key of the next node in the chain.
 //-----------------------------------------------------------------------
 
 // max live connections that a node can have
-const MAX_CONNECTIONS = 10;
+const MAX_CONNECTIONS = 100;
 let messageCount = 0;
 let messageJumpCount = 0;
 
@@ -50,7 +50,7 @@ class Node {
         this.address = this;
         this.next = [];
         this.previous = [];
-        this.connections = [];
+        this.fingers = [];
         
         // Initialize network properties
         this.publicIP = null;
@@ -62,7 +62,7 @@ class Node {
         if (initNode) {
             // Make sure we're creating a connection with a Node object
             const initialConnection = new Connection(initNode);
-            this.connections.unshift(initialConnection);
+            this.fingers.unshift(initialConnection);
             this.sendMessage(new Connection(this), initialConnection, "requestConnection");
         }
     }
@@ -94,14 +94,14 @@ class Node {
 
     // sort the connections whenever we add a new connection so we can easily find the closest connection
     sortConnections() {
-        this.connections.sort((a, b) => {
+        this.fingers.sort((a, b) => {
             return Node.getDistance(a.ID, b.ID);
         });
     }
 
     // sort the connections by date whenever we add a new connection so we can easily delete the oldest connections
     sortDates() {
-        this.connections.sort((a, b) => {
+        this.fingers.sort((a, b) => {
             // Sort by oldest first (smaller timestamps first)
             return a.lastAccessed.getTime() - b.lastAccessed.getTime();
         });
@@ -116,18 +116,19 @@ class Node {
         const secret = this.generateSecret();
         fromConnection.secret = secret;
         toConnection.secret = secret;
-        this.connections.push(toConnection);
-        this.sendMessage(new Connection(fromConnection), toConnection, "approvedConnection");
+        this.fingers.push(toConnection);
+        this.sendMessage(fromConnection, toConnection, "approvedConnection");
     }
 
     // response from a node that has approved a connection request
     approvedConnection(fromConnection) {
     //    console.log("approvedConnection --------------------- ", fromConnection.ID, this.ID);
         const updated = this.updateConnection(fromConnection);
-        if (!updated) this.connections.push(new Connection(fromConnection));
-        if (this.connections.length > MAX_CONNECTIONS) {
+        if (!updated) this.fingers.push(new Connection(fromConnection));
+        // remove the oldest connection if we have too many
+        if (this.fingers.length > MAX_CONNECTIONS) {
             this.sortDates();
-            this.connections = this.connections.slice(-MAX_CONNECTIONS);
+            this.fingers = this.fingers.slice(-MAX_CONNECTIONS);
         }
         this.sortConnections(); // Sort after adding new connection
         // check if we have been inserted into the mesh
@@ -261,12 +262,12 @@ class Node {
 
     // Process each connection with a given function
     processConnections(processFn) {
-        return this.connections.map(processFn);
+        return this.fingers.map(processFn);
     }
     
     // Process connections with async functions
     async processConnectionsAsync(processFn) {
-        return Promise.all(this.connections.map(processFn));
+        return Promise.all(this.fingers.map(processFn));
     }
 
     // Update all instances of a connection across connections, previous, and next arrays
@@ -274,7 +275,7 @@ class Node {
         let updated = false;
         
         // Update main connections array
-        this.connections = this.connections.map(conn => {
+        this.fingers = this.fingers.map(conn => {
             if (conn.ID === newConnection.ID) {
                 updated = true;
                 return newConnection;
@@ -312,12 +313,12 @@ class Node {
         };
 
         // Update all arrays
-        this.connections = updateArray(this.connections);
+        this.fingers = updateArray(this.fingers);
         this.previous = updateArray(this.previous);
         this.next = updateArray(this.next);
 
         // Check if any updates were made
-        return [...this.connections, ...this.previous, ...this.next]
+        return [...this.fingers, ...this.previous, ...this.next]
             .some(conn => conn.ID === newConnection.ID);
     }
 
@@ -344,7 +345,7 @@ class Node {
             }
         };
 
-        for (const connection of this.connections) {
+        for (const connection of this.fingers) {
             checkConnection(connection);
         }
  //console.log("bestConnection - connections1 ", nodeId, bestConnection?.ID, notExact);
@@ -360,7 +361,7 @@ class Node {
  //console.log("bestConnection - next ", nodeId, bestConnection?.ID);
         if(!bestConnection) {
             searchGreater = !searchGreater;
-            for (const connection of this.connections) {
+            for (const connection of this.fingers) {
                 checkConnection(connection);
             }
  //console.log("bestConnection - connections2 ", nodeId, bestConnection?.ID, notExact);
@@ -402,7 +403,7 @@ class Node {
     // Check if we have an active connection to this node by ID
     hasConnection(connection) {
         const targetID = connection.ID;
-        return [...this.connections, ...this.previous, ...this.next]
+        return [...this.fingers, ...this.previous, ...this.next]
             .some(conn => conn.ID === targetID);
     }
 
@@ -582,39 +583,43 @@ const getRandomID = () => {
 
 new Node(); // create the first node
 
-for(let i = 0; i < 10000; i++) {  
+for(let i = 0; i < 100000; i++) {  
     // Pass the random node itself, not a connection
     const randomNode = getRandomNode();
     const node = new Node(randomNode);
     if(i % 10000 === 0) console.log("Node ", i, node.ID);
 }
 
-let ac = 0, an = 0, ap = 0, mc = 0, mp = 0, mn = 0;
-let connectionCount = [];
-let previousCount = [];
-let nextCount = [];
+function reportStats() {
+    let ac = 0, an = 0, ap = 0, mc = 0, mp = 0, mn = 0;
+    let connectionCount = [];
+    let previousCount = [];
+    let nextCount = [];
+    let totalConnections = 0;
+    for(let i = 0; i < nodeMesh.length; i++) {
+        let node = nodeMesh[i];
+        if (node.fingers.length > mc) mc = node.fingers.length;
+        totalConnections += node.fingers.length;
+        if (node.previous.length > mp) mp = node.previous.length;
+        if (node.next.length > mn) mn = node.next.length;
 
-
-for(let i = 0; i < nodeMesh.length; i++) {
-    let node = nodeMesh[i];
-    if (node.connections.length > mc) mc = node.connections.length;
-    if (node.previous.length > mp) mp = node.previous.length;
-    if (node.next.length > mn) mn = node.next.length;
-
-    ac += node.connections.length;
-    ap += node.previous.length;
-    an += node.next.length;
-    connectionCount[node.connections.length] = (connectionCount[node.connections.length] || 0) + 1;
-    previousCount[node.previous.length] = (previousCount[node.previous.length] || 0) + 1;
-    nextCount[node.next.length] = (nextCount[node.next.length] || 0) + 1;
+        ac += node.fingers.length;
+        ap += node.previous.length;
+        an += node.next.length;
+        connectionCount[node.fingers.length] = (connectionCount[node.fingers.length] || 0) + 1;
+        previousCount[node.previous.length] = (previousCount[node.previous.length] || 0) + 1;
+        nextCount[node.next.length] = (nextCount[node.next.length] || 0) + 1;
+    }
+    console.log("--------------------------------");
+    //console.log("Max ", "mc", mc, "mp", mp, "mn", mn);
+    //console.log("Average ", "ac", ac/nodeMesh.length, "ap", ap/nodeMesh.length, "an", an/nodeMesh.length);
+    console.log("Total Connections ", totalConnections);
+    console.log("Connections ", connectionCount);
+    console.log("Previous ", previousCount);
+    console.log("Next ", nextCount);
+    console.log("Average Jump Count ", messageJumpCount/(messageCount||1));
 }
-
-console.log("Max ", "mc", mc, "mp", mp, "mn", mn);
-console.log("Average ", "ac", ac/nodeMesh.length, "ap", ap/nodeMesh.length, "an", an/nodeMesh.length);
-console.log("Connections ", connectionCount);
-console.log("Previous ", previousCount);
-console.log("Next ", nextCount);
-console.log("Average Jump Count ", messageJumpCount/(messageCount||1));
+reportStats();
 
 function testScale(scale) {
 
@@ -626,21 +631,19 @@ function testScale(scale) {
         if(i % 10000 === 0) console.log("Request ", i);
     }
 
-    messageCount = 0;
-    messageJumpCount = 0;
-
+//    reportStats();
+    messageJumpCount = messageCount = 0;
     for(let i = 0; i < 100000; i++) {
         let fromNode = getRandomNode();
         let toNode = getRandomNode();
         fromNode.sendMessage(new Connection(fromNode), new Connection(toNode), "message", "Hello");
     }
-
-    console.log("Average Jump Count ", messageJumpCount/(messageCount||1));
+    reportStats();
 }
 
 testScale(0);
-testScale(1000);
-testScale(10000);
+for(let i = 0; i < 10; i++) testScale(100000);
+// testScale(10000);
 // testScale(100000);
 // testScale(1000000);
 // testScale(10000000);
