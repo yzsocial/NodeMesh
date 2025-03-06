@@ -50,7 +50,7 @@ class Node {
         this.address = this;
         this.next = [];
         this.previous = [];
-        this.fingers = [];
+        this.connections = [];
         
         // Initialize network properties
         this.publicIP = null;
@@ -62,7 +62,7 @@ class Node {
         if (initNode) {
             // Make sure we're creating a connection with a Node object
             const initialConnection = new Connection(initNode);
-            this.fingers.unshift(initialConnection);
+            this.connections.unshift(initialConnection);
             this.sendMessage(new Connection(this), initialConnection, "requestConnection");
         }
     }
@@ -94,14 +94,14 @@ class Node {
 
     // sort the connections whenever we add a new connection so we can easily find the closest connection
     sortConnections() {
-        this.fingers.sort((a, b) => {
+        this.connections.sort((a, b) => {
             return Node.getDistance(a.ID, b.ID);
         });
     }
 
     // sort the connections by date whenever we add a new connection so we can easily delete the oldest connections
     sortDates() {
-        this.fingers.sort((a, b) => {
+        this.connections.sort((a, b) => {
             // Sort by oldest first (smaller timestamps first)
             return a.lastAccessed.getTime() - b.lastAccessed.getTime();
         });
@@ -116,7 +116,7 @@ class Node {
         const secret = this.generateSecret();
         fromConnection.secret = secret;
         toConnection.secret = secret;
-        this.fingers.push(toConnection);
+        this.connections.push(toConnection);
         this.sendMessage(fromConnection, toConnection, "approvedConnection");
     }
 
@@ -124,11 +124,11 @@ class Node {
     approvedConnection(fromConnection) {
     //    console.log("approvedConnection --------------------- ", fromConnection.ID, this.ID);
         const updated = this.updateConnection(fromConnection);
-        if (!updated) this.fingers.push(new Connection(fromConnection));
+        if (!updated) this.connections.push(new Connection(fromConnection));
         // remove the oldest connection if we have too many
-        if (this.fingers.length > MAX_CONNECTIONS) {
+        if (this.connections.length > MAX_CONNECTIONS) {
             this.sortDates();
-            this.fingers = this.fingers.slice(-MAX_CONNECTIONS);
+            this.connections = this.connections.slice(-MAX_CONNECTIONS);
         }
         this.sortConnections(); // Sort after adding new connection
         // check if we have been inserted into the mesh
@@ -262,12 +262,12 @@ class Node {
 
     // Process each connection with a given function
     processConnections(processFn) {
-        return this.fingers.map(processFn);
+        return this.connections.map(processFn);
     }
     
     // Process connections with async functions
     async processConnectionsAsync(processFn) {
-        return Promise.all(this.fingers.map(processFn));
+        return Promise.all(this.connections.map(processFn));
     }
 
     // Update all instances of a connection across connections, previous, and next arrays
@@ -275,7 +275,7 @@ class Node {
         let updated = false;
         
         // Update main connections array
-        this.fingers = this.fingers.map(conn => {
+        this.connections = this.connections.map(conn => {
             if (conn.ID === newConnection.ID) {
                 updated = true;
                 return newConnection;
@@ -313,12 +313,12 @@ class Node {
         };
 
         // Update all arrays
-        this.fingers = updateArray(this.fingers);
+        this.connections = updateArray(this.connections);
         this.previous = updateArray(this.previous);
         this.next = updateArray(this.next);
 
         // Check if any updates were made
-        return [...this.fingers, ...this.previous, ...this.next]
+        return [...this.connections, ...this.previous, ...this.next]
             .some(conn => conn.ID === newConnection.ID);
     }
 
@@ -345,7 +345,7 @@ class Node {
             }
         };
 
-        for (const connection of this.fingers) {
+        for (const connection of this.connections) {
             checkConnection(connection);
         }
  //console.log("bestConnection - connections1 ", nodeId, bestConnection?.ID, notExact);
@@ -361,7 +361,7 @@ class Node {
  //console.log("bestConnection - next ", nodeId, bestConnection?.ID);
         if(!bestConnection) {
             searchGreater = !searchGreater;
-            for (const connection of this.fingers) {
+            for (const connection of this.connections) {
                 checkConnection(connection);
             }
  //console.log("bestConnection - connections2 ", nodeId, bestConnection?.ID, notExact);
@@ -403,7 +403,7 @@ class Node {
     // Check if we have an active connection to this node by ID
     hasConnection(connection) {
         const targetID = connection.ID;
-        return [...this.fingers, ...this.previous, ...this.next]
+        return [...this.connections, ...this.previous, ...this.next]
             .some(conn => conn.ID === targetID);
     }
 
@@ -598,15 +598,15 @@ function reportStats() {
     let totalConnections = 0;
     for(let i = 0; i < nodeMesh.length; i++) {
         let node = nodeMesh[i];
-        if (node.fingers.length > mc) mc = node.fingers.length;
-        totalConnections += node.fingers.length;
+        if (node.connections.length > mc) mc = node.connections.length;
+        totalConnections += node.connections.length;
         if (node.previous.length > mp) mp = node.previous.length;
         if (node.next.length > mn) mn = node.next.length;
 
-        ac += node.fingers.length;
+        ac += node.connections.length;
         ap += node.previous.length;
         an += node.next.length;
-        connectionCount[node.fingers.length] = (connectionCount[node.fingers.length] || 0) + 1;
+        connectionCount[node.connections.length] = (connectionCount[node.connections.length] || 0) + 1;
         previousCount[node.previous.length] = (previousCount[node.previous.length] || 0) + 1;
         nextCount[node.next.length] = (nextCount[node.next.length] || 0) + 1;
     }
