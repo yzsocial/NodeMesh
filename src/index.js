@@ -245,7 +245,7 @@ class Node {
                     rval = true;
                  }else{
                     // someone else will insert the new connection
-                    let closest = this.findConnection(newConnection.ID);
+                    let closest = this.findConnection(newConnection.ID, true);
                     if(closest) this.sendMessage(newConnection.clone(), closest, "insertConnection");
                     else console.log("closest not found", newConnection.ID, this.ID); // this should never happen
                 }
@@ -267,7 +267,7 @@ class Node {
                     rval = true;
                  }else{
                     // someone else will insert the new connection
-                    let closest = this.findConnection(newConnection.ID);
+                    let closest = this.findConnection(newConnection.ID, true);
                     if(closest) this.sendMessage(newConnection.clone(), closest, "insertConnection");
                     else console.log("closest not found", newConnection.ID, this.ID); // this should never happen
                 }
@@ -291,7 +291,7 @@ class Node {
         if (messageType === "insertConnection") {
             if(this.ID !== fromConnection.ID) this.insertConnection(fromConnection); // I am the one sending this message
             else {
-                const closest = this.findConnection(toConnection.ID, true, 3);
+                const closest = this.findConnection(toConnection.ID);
                 if (closest && closest.ID === toConnection.ID) console.log("closest is exact", closest.ID);
                 if (closest) closest.address.sendMessage(fromConnection, toConnection, messageType, message); // this would be a network send
                 else console.error("No closest node found for ", messageType);
@@ -437,7 +437,7 @@ class Node {
 
     findConnection(nodeId, insert = false) {
 
-        if(nodeId === this.ID) {
+        if(nodeId === this.ID && !insert) {
             console.error("findConnection - nodeId is this.ID", nodeId, this.ID);
             return this;
         }
