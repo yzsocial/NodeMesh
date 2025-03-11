@@ -684,7 +684,8 @@ class Connection {
 // For simulation purposes, we will use Math.random() to generate a unique ID for each node
 //-----------------------------------------------------------------------
 
-
+// This is the number of nodes to create
+const NODE_COUNT = 100000;
 
 
 // Get random node from the nodeMesh population
@@ -701,7 +702,7 @@ const getRandomID = () => {
 
 new Node(); // create the first node
 
-for(let i = 0; i < 1000000; i++) {  
+for(let i = 0; i < NODE_COUNT; i++) {  
     // Pass the random node itself, not a connection
     const randomNode = getRandomNode();
     const node = new Node(randomNode);
@@ -767,7 +768,7 @@ function testScale(scale) {
 }
 
 // testScale(1);
-for(let i = 0; i < 10; i++) testScale(100000);
+for(let i = 0; i < 10; i++) testScale(1000000);
 // testScale(10000);
 // testScale(100000);
 // testScale(1000000);
