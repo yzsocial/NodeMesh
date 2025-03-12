@@ -1,4 +1,4 @@
-document.getElementById('app').innerHTML = 'YZ.social!'; 
+//document.getElementById('app').innerHTML = 'YZ.social!'; 
 
 /*
 This is a simulation of the YZ network. 
@@ -768,7 +768,7 @@ function testScale(scale) {
 }
 
 // testScale(1);
-for(let i = 0; i < 10; i++) testScale(1000000);
+for(let i = 0; i < 10; i++) testScale(100000);
 // testScale(10000);
 // testScale(100000);
 // testScale(1000000);
