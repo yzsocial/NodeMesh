@@ -1,21 +1,28 @@
 {
-  "name": "webpack-project",
+  "name": "yz-p2p-network",
   "version": "1.0.0",
-  "description": "A minimal webpack project",
-  "main": "index.js",
+  "description": "P2P network simulation using PeerJS",
+  "main": "src/index.js",
   "scripts": {
     "start": "webpack serve --mode development",
     "start-no-open": "webpack serve --mode development",
-    "start-basic": "webpack serve --mode development --no-hot",
-    "start-debug": "NODE_OPTIONS=--max-old-space-size=4096 webpack serve --mode development",
-    "start-simple": "webpack serve --mode development --config webpack.config.simple.js",
-    "build": "webpack --mode production"
+    "build-simple": "webpack --mode development --no-devtool",
+    "build": "webpack --mode production",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "dependencies": {},
+  "dependencies": {
+    "peerjs": "^1.4.7"
+  },
   "devDependencies": {
-    "webpack": "^5.89.0",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.15.1",
-    "html-webpack-plugin": "^5.5.3"
-  }
+    "@babel/core": "^7.21.0",
+    "@babel/preset-env": "^7.20.2",
+    "babel-loader": "^9.1.2",
+    "html-webpack-plugin": "^5.5.0",
+    "webpack": "^5.75.0",
+    "webpack-cli": "^5.0.1",
+    "webpack-dev-server": "^4.11.1"
+  },
+  "keywords": ["p2p", "dht", "chord", "network", "mesh", "decentralized"],
+  "author": "",
+  "license": "MIT"
 } 
