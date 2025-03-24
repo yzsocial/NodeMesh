@@ -1,6 +1,5 @@
 import Node from './Node.js';
 import Edge from './Edge.js';
-import { MAX_EDGES } from './Constants.js'; // Import MAX_EDGES
 
 // Export all globals used by Node and other modules
 export const nodeMesh = []; 
@@ -20,7 +19,6 @@ export const sendMessageData = {
 export let showFlag = false;
 
 // This is the number of nodes to create
-export const NODE_COUNT = 100000;
 
 // Get random node from the nodeMesh population
 export const getRandomNode = () => {
@@ -77,9 +75,9 @@ export function initializeMesh(nodeCount) {
     console.log("Mesh initialized successfully");
 }
 
-export function testScale(scaleConnections = 100, scaleMessages = 100) {
+export function scaleConnections(scaleConnections = 100) {
     showFlag = true;
-    console.log("TestScale connections ", scaleConnections, " messages ", scaleMessages);
+    console.log("Test scale connections ", scaleConnections, " messages ", scaleMessages);
 
     for(let i = 0; i < scaleConnections; i++) {
         let fromNode = getRandomNode();
@@ -95,8 +93,10 @@ export function testScale(scaleConnections = 100, scaleMessages = 100) {
         fromNode.connectTo(toNode);
         if(i % 10000 === 0) console.log("Request ", i);
     }
+}
 
-    console.log("Test Scale 2");
+export function scaleMessages(scaleMessages = 100) {
+    console.log("Test scale messages 2");
     sendMessageData.messageJumpCount = sendMessageData.messageCount = 0;
     for(let i = 0; i < scaleMessages; i++) {
         let fromNode = getRandomNode();
@@ -110,13 +110,11 @@ export function testScale(scaleConnections = 100, scaleMessages = 100) {
 
         fromNode.sendMessage(new Edge(fromNode), new Edge(toNode), "message", "Hello");
     }
-    reportStats();
 }
 
 // Export everything needed for the original behavior
 export default {
     initializeMesh,
-    testScale,
     reportStats,
     getRandomNode,
     getRandomID

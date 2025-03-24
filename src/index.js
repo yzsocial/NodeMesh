@@ -1,5 +1,5 @@
 import { NODE_COUNT, NODE_CONNECTION_SCALE, NODE_MESSAGE_SCALE } from './Constants.js';
-import { initializeMesh, testScale } from './Simulation.js';
+import { initializeMesh, scaleMessages, scaleConnections, reportStats } from './Simulation.js';
 
 // Initial DOM setup
 document.getElementById('app').innerHTML = 'YZ.social!';
@@ -21,4 +21,6 @@ initializeMesh(NODE_COUNT);
 
 // Run the simulation immediately as in the original code
 //for(let i = 0; i < 10; i++) testScale(10, 10);
-testScale(NODE_CONNECTION_SCALE, NODE_MESSAGE_SCALE);
+scaleConnections(NODE_CONNECTION_SCALE);
+scaleMessages(NODE_MESSAGE_SCALE);
+reportStats();
