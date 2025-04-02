@@ -1,98 +1,62 @@
 import Edge from './Edge.js';
 import { generateSHA1HashSync, capArraySize } from './Utilities.js';
 import { nodeMesh, nodeMeshx, sendMessageData } from './Simulation.js';
-import { MAX_EDGES } from './Constants.js';
+import { MAX_EDGES } from './constants.js';
+import { Keys } from './keys.js';
 
 // Global constants
 const BIGINT = false;
 const showFlag = false;
 // Node Class - core P2P network node
 class Node {
-    constructor(initNode = undefined, index) {
+    constructor(initNode = undefined) {
+        // console.log("Node constructor:", initNode);
+        // in simulation
         nodeMesh.push(this);
         nodeMeshx.nodes.push(this);
         nodeMeshx.nodes = nodeMeshx.nodes.slice(-10);
         
-        this.generateKeys();
-        if(index) this.publicKey = index;
+        this.keys = new Keys();
+        this.keys.generateKeys();
         this.address = this;
         this.next = [];
         this.previous = [];
         this.edges = [];
         this.lastAccessed = new Date();
-
-        // Initialize network properties
-        this.publicIP = null;
-        this.publicPort = null;
-        this.natType = null;
-        this.privateIP = null;
-        this.privatePort = null;
         
         if (initNode) {
             this.connectTo(initNode);
             const sharedSecret = this.findEdge(initNode.ID).sharedSecret;
             this.sendMessage(new Edge(this), new Edge(initNode), "joinMesh", this.encryptMessage(sharedSecret, initNode.publicKey));
         }
+        // console.log("Node constructor exit");
     }
 
     encryptMessage(message, key) { return message;}
     decryptMessage(message, key) { return message;}
 
+    // this is a placeholder for testing. Actual connection is done
+    // using a STUN server.
     connectTo(newEdge) {
         const yourEdge = new Edge(newEdge);
         const myEdge = new Edge(this);
         yourEdge.sharedSecret = this.generateSecret(newEdge.ID);
         myEdge.sharedSecret = yourEdge.sharedSecret;
+        //console.log("connectTo - myEdge", myEdge, yourEdge);
         newEdge.edges.unshift(myEdge);
         this.edges.unshift(yourEdge);
     }
 
     // this is also the public key for the node
-    get ID() { return this.publicKey; }
-    
-    // Calculate distance between two node IDs
-    static getDistance(id1, id2) {
-        if(BIGINT) return BigInt('0x'+id2) - BigInt('0x'+id1);
-        else return id2-id1;
-    }
-
-    static getOrder(id1, id2) {
-        if( id1 > id2 ) return -1; // id2 is before id1
-        if( id1 < id2 ) return 1; // id2 is after id1
-        return 0; // they are the same
-    }
-
-    // Get distance to another node
-    distanceTo(otherNode) {
-        return Node.getDistance(this.ID, otherNode.ID);
-    }
-
-    // this is a unique ID for the node
-    // it will be the public key for the public/private crypto key pair
-    generateKeys() {
-        if(BIGINT) {
-            // Generate a unique random string
-            const randomValue = Math.random().toString() + Date.now().toString();
-        
-            // Generate privateKey as a SHA-1 hash
-            this.privateKey = generateSHA1HashSync(randomValue);
-            
-            // Generate publicKey as SHA-1 hash of privateKey
-            // This creates a relationship between private and public keys
-            this.publicKey = generateSHA1HashSync(this.privateKey);
-            
-            return this.publicKey;
-        } else {
-            this.privateKey = Math.random();
-            this.publicKey = Math.random();
-            return this.publicKey;
-        }
-    }
+    get ID() { return this.keys.ID; }
+    get publicKey() { return this.keys.publicKey; }
+    get privateKey() { return this.keys.privateKey; }
+    get geolocation() { return this.keys.geolocation; }
 
     // this is a unique shared secret between two connected nodes
     generateSecret(key) {
         // Generate a unique random value for the secret
-        const randomValue = Math.random().toString() + Date.now().toString() + key;
+        const randomValue = Math.random().toString() + Date.now().toString() + this.ID + key;
         
         // Use SHA-1 hash of the random value as the secret
         return generateSHA1HashSync(randomValue);
@@ -101,7 +65,7 @@ class Node {
     // sort the edges whenever we add a new edge so we can easily find the closest edge
     sortEdges(edges, s2l = true) {
         return edges.sort((a, b) => {
-            return s2l ? Node.getOrder(a.ID, b.ID) : Node.getOrder(b.ID, a.ID); // order from smallest to largest values
+            return s2l ? Keys.getOrder(a.ID, b.ID) : Keys.getOrder(b.ID, a.ID); // order from smallest to largest values
         });
     }
 
@@ -159,7 +123,7 @@ class Node {
     insertEdge(newEdge) { 
         // console.log("insertEdge - newEdge", this.ID, newEdge.ID);
         let rval = false;
-        const order = Node.getOrder(this.ID,newEdge.ID);
+        const order = Keys.getOrder(this.ID,newEdge.ID);
         // console.log("order", this.ID, newEdge.ID, order);
         if(order < 0) { // the newEdge is a previous node to the left
             // console.log("insert to the left ", this.previous.length);
@@ -242,7 +206,7 @@ class Node {
         const checkEdge = (edge) => {
             // Calculate distance to target nodeId
             if(direction !== "all" && nodeId === edge.ID) return;
-            let distance = Node.getDistance(nodeId, edge.ID);
+            let distance = Keys.getDistance(nodeId, edge.ID);
             distance = distance < 0 ? -distance : distance; // BigInt
             if (distance < bestDistance) {
                 bestDistance = distance;

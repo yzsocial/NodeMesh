@@ -7,7 +7,7 @@ Node v23.2.0.
 
 ## Project
 
-Our goal is to create a fully decentralized peer-to-peer (P2P) network application. Like all P2P systems, joining the network will require the use of a STUN server. We will be using the peerjs P2P library as well as the peerjs server. This particular project is focused on the library and we will create another project that allows us to run the server.
+Our goal is to create a fully decentralized peer-to-peer (P2P) network. Like all P2P systems, joining the network will require the use of a STUN server. We will be using the peerjs P2P library as well as the peerjs server. This particular project is focused on the library and we will create another project that allows us to run the server.
 
 ## Resources
 
@@ -19,6 +19,9 @@ https://peerjs.com/docs/
 
 It will use the PeerJS server described here:
 https://github.com/peers/peerjs-server
+
+It will use the S2Geometry libary for defining the extended ID:
+http://s2geometry.io/
 
 It will use the Signal post quantum security protocol for secure communication described here:
 https://signal.org/docs/specifications/pqxdh/

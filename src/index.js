@@ -1,4 +1,4 @@
-import { NODE_COUNT, NODE_CONNECTION_SCALE, NODE_MESSAGE_SCALE } from './Constants.js';
+import { NODE_COUNT, NODE_CONNECTION_SCALE, NODE_MESSAGE_SCALE } from './constants.js';
 import { initializeMesh, scaleMessages, scaleConnections, reportStats } from './Simulation.js';
 
 // Initial DOM setup

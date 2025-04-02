@@ -3,7 +3,7 @@ class Edge {
     constructor(node) {
         // Basic identification
         this.publicKey = node.publicKey;
-        this.localKey = node.localKey;
+        this.geolocation = node.geolocation;
         // Handle both Node instances and temporary node-like objects
         if (node.address) {
             // If it's a Edge object or has an address property
@@ -28,8 +28,7 @@ class Edge {
         // this.secret = sourceNode.secret;
     }
 
-    get ID() { return this.publicKey; }
-    get LocalID() { return this.localKey+this.publicKey; } 
+    get ID() { return this.geolocation+this.publicKey; }
     // Clone method needs to copy all network info and maintain node reference
     clone() {
         this.lastAccessed = new Date();
