@@ -1,4 +1,4 @@
-import { BIGINT } from "./constants.js";
+import { BIGINT, MAX_PK, MAX_KEY } from "./constants.js";
 
 // this is to abstract the keys from the node class
 // we are using a very simple random key for the simulation
@@ -11,10 +11,11 @@ import { BIGINT } from "./constants.js";
 export class Keys {
     constructor() {
         this.publicKey = null;
-        this.privateKey = null;
+        this.privateKey = null; 
         this.geolocation = null;
-        this.maxKey = 10;
-        this.maxPK = 1;
+        this.maxKey = MAX_KEY;
+        this.maxPK = MAX_PK; 
+;
     }
 
     generateKeys() {
@@ -89,15 +90,15 @@ export class Keys {
         let chords = [];
         let c = this.publicKey+(this.maxPK/2);
         if(c > this.maxPK) c = c-this.maxPK;
-        chords.push(c); // furthest away chord location
+        chords.push(c+this.geolocation); // furthest away chord location
         for(let i = 1; i < count; i++) {
             const delta = this.maxPK/(2^(i+1));
             c = this.publicKey+delta;
             if(c > this.maxPK) c = c-this.maxPK;
-            chords.push(c);
+            chords.push(c+this.geolocation);
             c = this.publicKey-delta;
             if(c < 0) c = c+this.maxPK;
-            chords.push(c);
+            chords.push(c+this.geolocation);
         }
         return chords;
     }

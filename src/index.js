@@ -1,5 +1,5 @@
 import { NODE_COUNT, NODE_CONNECTION_SCALE, NODE_MESSAGE_SCALE } from './constants.js';
-import { initializeMesh, scaleMessages, scaleConnections, reportStats } from './Simulation.js';
+import { initializeMesh, scaleMessages, scaleConnections, reportStats } from './simulation.js';
 
 // Initial DOM setup
 document.getElementById('app').innerHTML = 'YZ.social!';

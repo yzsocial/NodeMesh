@@ -1,5 +1,5 @@
-import Node from './Node.js';
-import Edge from './Edge.js';
+import Node from './node.js';
+import Edge from './edge.js';
 
 // Export all globals used by Node and other modules
 export const nodeMesh = []; 
@@ -12,9 +12,10 @@ export const sendMessageData = {
     fromEdge: [],
     toEdge: [],
     messageType: [],
+    messageTypeCount: {},
     message: [],
     messageCount: 0,
-    messageJumpCount: 0
+    messageHopCount: 0
 };
 export let showFlag = false;
 
@@ -57,7 +58,8 @@ export function reportStats() {
     console.log("Edges ", edgeCount);
     console.log("Previous ", previousCount);
     console.log("Next ", nextCount);
-    console.log("Average Jump Count ", sendMessageData.messageJumpCount/(sendMessageData.messageCount||1));
+    console.log("Average Hop Count ", sendMessageData.messageHopCount/(sendMessageData.messageCount||1));
+    console.log("Message Types ", sendMessageData.messageTypeCount);
 }
 
 export function initializeMesh(nodeCount) {
@@ -97,7 +99,7 @@ export function scaleConnections(scaleConnections = 100) {
 
 export function scaleMessages(scaleMessages = 100) {
     console.log("Test scale messages 2");
-    sendMessageData.messageJumpCount = sendMessageData.messageCount = 0;
+    sendMessageData.messageHopCount = sendMessageData.messageCount = 0;
     for(let i = 0; i < scaleMessages; i++) {
         let fromNode = getRandomNode();
         let toNode = getRandomNode();

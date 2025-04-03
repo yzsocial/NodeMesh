@@ -4,6 +4,7 @@ class Edge {
         // Basic identification
         this.publicKey = node.publicKey;
         this.geolocation = node.geolocation;
+        this.sponsor = node.sponsor;
         // Handle both Node instances and temporary node-like objects
         if (node.address) {
             // If it's a Edge object or has an address property
@@ -14,7 +15,7 @@ class Edge {
         }
         
         this.lastAccessed = new Date();
-        this.jumpCount = 0;
+        this.hopCount = 0;
 
         // Real network information (get from the actual node/object)
         const sourceNode = this.address;
