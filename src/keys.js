@@ -29,11 +29,11 @@ export class Keys {
             // Generate publicKey as SHA-1 hash of privateKey
             // This creates a relationship between private and public keys
             this.publicKey = generateSHA1HashSync(this.privateKey);
-            this.geolocation = Math.floor(Math.random()*10)+1; 
+            this.geolocation = Math.floor(Math.random()*this.maxKey); 
         } else {
             this.privateKey = Math.random();
             this.publicKey = Math.random();
-            this.geolocation = Math.floor(Math.random()*this.maxKey)+1; 
+            this.geolocation = Math.floor(Math.random()*this.maxKey); 
             // console.log("Keys generated:", this.privateKey, this.publicKey, this.geolocation);
         }
     }
@@ -71,7 +71,7 @@ export class Keys {
         if(c > this.maxKey) c = c-this.maxKey;
         chords.push(c); // furthest away chord location
         for(let i = 1; i < count; i++) {
-            const delta = this.maxKey/(2^(i+1));
+            const delta = this.maxKey/(2**(i+1));
             c = this.ID+delta;
             if(c > this.maxKey) c = c-this.maxKey;
             chords.push(c);
@@ -92,7 +92,7 @@ export class Keys {
         if(c > this.maxPK) c = c-this.maxPK;
         chords.push(c+this.geolocation); // furthest away chord location
         for(let i = 1; i < count; i++) {
-            const delta = this.maxPK/(2^(i+1));
+            const delta = this.maxPK/(2**(i+1));
             c = this.publicKey+delta;
             if(c > this.maxPK) c = c-this.maxPK;
             chords.push(c+this.geolocation);

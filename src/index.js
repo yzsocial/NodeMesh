@@ -1,5 +1,5 @@
 import { NODE_COUNT, NODE_CONNECTION_SCALE, NODE_MESSAGE_SCALE } from './constants.js';
-import { initializeMesh, scaleMessages, scaleConnections, reportStats } from './simulation.js';
+import { initializeMesh, scaleMessages, killNodes, resetNodes, reportStats, chordsGlobal, chordsLocal, getRandomNode } from './simulation.js';
 
 // Initial DOM setup
 document.getElementById('app').innerHTML = 'YZ.social!';
@@ -7,13 +7,8 @@ document.getElementById('app').innerHTML = 'YZ.social!';
 // Display project description
 console.log(`
 This is a simulation of the YZ network. 
-Most people are stuck on the x/y plane. We see issues and solve them by working around them without being able 
-to see within them. This is often referred to the "pink" plane.
-If we are able to explore the y/z plane, we get a totally new viewpoint on the issues, reaching better understanding and power.
-This is of course, the "blue" plane.
-    X has one dimension. Without Y and Z, it can go nowhere.
 
-    VERSION 0.0.1
+    VERSION 0.0.2
 `);
 
 // Initialize the mesh first
@@ -21,6 +16,29 @@ initializeMesh(NODE_COUNT);
 
 // Run the simulation immediately as in the original code
 //for(let i = 0; i < 10; i++) testScale(10, 10);
-scaleConnections(NODE_CONNECTION_SCALE);
-scaleMessages(NODE_MESSAGE_SCALE);
-reportStats();
+//scaleConnections(NODE_CONNECTION_SCALE);
+scaleMessages(1000);
+reportStats("no chords");
+chordsGlobal();
+scaleMessages(1000);
+reportStats("+ global chords");
+chordsLocal();
+scaleMessages(1000);
+reportStats("+ local chords");
+scaleMessages(1000, true);
+reportStats("local to local");
+killNodes(0.1); // kill 10% of the nodes
+scaleMessages(1000);
+reportStats("10% offline")
+resetNodes();
+killNodes(0.15);
+scaleMessages(1000);
+reportStats("15% offline")
+resetNodes();
+killNodes(0.20);
+scaleMessages(1000);
+reportStats("20% offline")
+resetNodes();
+killNodes(0.25);
+scaleMessages(1000);
+reportStats("15% offline")

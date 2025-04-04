@@ -5,7 +5,7 @@ import { MAX_EDGES } from './constants.js';
 import { Keys } from './keys.js';
 
 // Global constants
-const showFlag = false;
+let showFlag = false;
 // Node Class - core P2P network node
 class Node {
     constructor(sponsor = undefined) {
@@ -22,6 +22,7 @@ class Node {
         this.previous = [];
         this.edges = [];
         this.lastAccessed = new Date();
+        this.available = true;
         
         if (sponsor) {
             this.sponsorNode(sponsor);
@@ -126,7 +127,7 @@ class Node {
             if(this.previous.length > 0) { // there is a previous node
                 let closest = this.findEdge(this.ID, "previous"); 
                 // console.log("this", this.ID, "insert", newEdge.ID, "previous", closest?.ID);
-                if(closest.ID < newEdge.ID){
+                if(closest?.ID < newEdge.ID){
                     this.previous.unshift(newEdge.clone()); // newEdge is new closest previous node
                     this.sendMessage(new Edge(this),newEdge.clone(), "setNextEdge"); // this is newEdge's next node
                     this.sendMessage(closest.clone(), new Edge(newEdge.clone()), "setPreviousEdge"); // closest is newEdge's previous node
@@ -149,7 +150,7 @@ class Node {
             if(this.next.length > 0) { // there is a next node
                 let closest = this.findEdge(this.ID, "next"); // only check next nodes
                 // console.log("this", this.ID, "insert", newEdge.ID, "next", closest?.ID);
-                if(closest.ID > newEdge.ID){
+                if(closest?.ID > newEdge.ID){
                     this.next.unshift(newEdge.clone()); // newEdge is new closest previous node
                     this.sendMessage(new Edge(this),newEdge.clone(), "setPreviousEdge"); // this is newEdge's next node
                     this.sendMessage(closest.clone(), new Edge(newEdge.clone()), "setNextEdge"); // closest is newEdge's previous node
@@ -172,7 +173,18 @@ class Node {
         }
         return rval;
     }
-            
+    
+    chordConnection(fromEdge, chordID){
+        let closest = this.findEdge(chordID);
+        let d1 = Math.abs(Keys.getDistance(chordID, closest.ID));
+        let d2 = Math.abs(Keys.getDistance(chordID, this.ID));
+        if( d2 > d1 ){ // there is a closer node than this one
+            this.sendMessage(fromEdge.clone(), closest, "chordConnection", chordID);
+        } else {
+            this.confirmConnection(fromEdge);
+        }
+    }
+
     // find the closest edge to the target nodeId 
     // - search edges for the closest edge there
     // - search previous if the target nodeId is less than this nodeId
@@ -180,14 +192,17 @@ class Node {
 
     findEdge(nodeId, direction = "all") {
         let bestEdge = null;
-        let bestDistance = Infinity;
+        // needs to be closer than this node
+        let bestDistance = Infinity; //Math.abs(this.ID-nodeId); 
 
         // Helper function to check and update best edge
         const checkEdge = (edge) => {
             // Calculate distance to target nodeId
+            if(edge.ID === nodeId && edge.address.available === false){
+                return;
+            }
             if(direction !== "all" && nodeId === edge.ID) return;
-            let distance = Keys.getDistance(nodeId, edge.ID);
-            distance = distance < 0 ? -distance : distance; // BigInt
+            let distance = Math.abs(Keys.getDistance(nodeId, edge.ID));
             if (distance < bestDistance) {
                 bestDistance = distance;
                 bestEdge = edge;
@@ -226,7 +241,7 @@ class Node {
         } else {
             const closest = this.findEdge(toEdge.ID); 
             if (closest) {
-                if(showFlag) console.log("sendMessage + --------------------- ", closest.ID, this.ID, toEdge.ID);
+                if(showFlag) console.log("sendMessage --------------------- ", closest.ID, this.ID, toEdge.ID);
                 sendMessageData.closest.unshift(closest.ID); sendMessageData.closest = sendMessageData.closest.slice(-100);
                 sendMessageData.fromEdge.unshift(fromEdge.ID); sendMessageData.fromEdge = sendMessageData.fromEdge.slice(-100);
                 sendMessageData.toEdge.unshift(toEdge.ID); sendMessageData.toEdge = sendMessageData.toEdge.slice(-100);
@@ -265,6 +280,9 @@ class Node {
                 break;
             case "approvedConnection": // I approve my connection to the new node and here is our shared secret
                 this.approvedConnection(fromEdge);
+                break;
+            case "chordConnection": // find the closest node to this requested chord
+                this.chordConnection(fromEdge, message);
                 break;
             case "insertMesh": // Please insert the new node into the spatial mesh
                 this.insertMesh(message);
@@ -315,6 +333,18 @@ class Node {
         });
 
         return updated;
+    }
+
+    chordsGlobal(){
+        const chords = this.keys.chordsGlobal(7);
+        const fromEdge = new Edge(this);
+        for (const c of chords) { this.chordConnection(fromEdge, c); }
+    }
+
+    chordsLocal(){
+        const chords = this.keys.chordsLocal(7);
+        const fromEdge = new Edge(this);
+        for (const c of chords) { this.chordConnection(fromEdge, c); }
     }
 }
 

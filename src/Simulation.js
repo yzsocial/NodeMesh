@@ -4,6 +4,7 @@ import Edge from './edge.js';
 // Export all globals used by Node and other modules
 export const nodeMesh = []; 
 export const nodeMeshx = { nodes: [] };
+export const nodeMeshLocal = [];
 console.log("nodeMesh", nodeMesh);
 console.log("nodeMeshx", nodeMeshx);
 
@@ -19,12 +20,26 @@ export const sendMessageData = {
 };
 export let showFlag = false;
 
+function resetSendMessageData(){
+    sendMessageData.closest = [];
+    sendMessageData.fromEdge = [];
+    sendMessageData.toEdge = [];
+    sendMessageData. messageType = [];
+    sendMessageData.messageTypeCount = {};
+    sendMessageData. message = [];
+    sendMessageData.essageCount = 0,
+    sendMessageData.messageHopCount= 0
+}
 // This is the number of nodes to create
 
 // Get random node from the nodeMesh population
 export const getRandomNode = () => {
     const randomIndex = Math.floor(Math.random() * nodeMesh.length);
     return nodeMesh[randomIndex]; 
+}
+export const getRandomNodeLocal = () => {
+    const randomIndex = Math.floor(Math.random() * nodeMeshLocal.length);
+    return nodeMeshLocal[randomIndex]; 
 }
 
 // Get a random ID from the node population
@@ -33,7 +48,7 @@ export const getRandomID = () => {
     return node.ID;
 }
 
-export function reportStats() {
+export function reportStats(message) {
     let ac = 0, an = 0, ap = 0, mc = 0, mp = 0, mn = 0;
     let edgeCount = [];
     let previousCount = [];
@@ -53,13 +68,18 @@ export function reportStats() {
         previousCount[node.previous.length] = (previousCount[node.previous.length] || 0) + 1;
         nextCount[node.next.length] = (nextCount[node.next.length] || 0) + 1;
     }
+    console.log("================================");
+    console.log(message);
     console.log("--------------------------------");
     console.log("Total Edges ", totalEdges);
     console.log("Edges ", edgeCount);
     console.log("Previous ", previousCount);
     console.log("Next ", nextCount);
-    console.log("Average Hop Count ", sendMessageData.messageHopCount/(sendMessageData.messageCount||1));
     console.log("Message Types ", sendMessageData.messageTypeCount);
+    console.log("**** Average Hop Count ", sendMessageData.messageHopCount/(sendMessageData.messageCount||1));
+    console.log("--------------------------------");
+
+    resetSendMessageData();
 }
 
 export function initializeMesh(nodeCount) {
@@ -70,10 +90,11 @@ export function initializeMesh(nodeCount) {
         const randomNode = getRandomNode(); // This should now return a valid node
         const node = new Node(randomNode); // Create a new Node
         nodeMesh.push(node); // Add the new node to nodeMesh
+        if(node.geolocation === 1)nodeMeshLocal.push(node);
         if(i % 10000 === 0) console.log("Node ", i, node.ID);
     }
     
-    reportStats();
+    reportStats("initialize mesh");
     console.log("Mesh initialized successfully");
 }
 
@@ -97,12 +118,13 @@ export function scaleConnections(scaleConnections = 100) {
     }
 }
 
-export function scaleMessages(scaleMessages = 100) {
+export function scaleMessages(scaleMessages = 100, local) {
+    resetSendMessageData();
     console.log("Test scale messages 2");
     sendMessageData.messageHopCount = sendMessageData.messageCount = 0;
     for(let i = 0; i < scaleMessages; i++) {
-        let fromNode = getRandomNode();
-        let toNode = getRandomNode();
+        let fromNode = local ? getRandomNodeLocal() : getRandomNode();
+        let toNode = local ? getRandomNodeLocal() : getRandomNode();
 
         // Check if both nodes are defined
         if (!fromNode || !toNode) {
@@ -114,10 +136,23 @@ export function scaleMessages(scaleMessages = 100) {
     }
 }
 
-// Export everything needed for the original behavior
-export default {
-    initializeMesh,
-    reportStats,
-    getRandomNode,
-    getRandomID
-}; 
+export function chordsGlobal(scaleChords = 10){
+    for (const node of nodeMesh) { node.chordsGlobal(); }
+}
+export function chordsLocal(scaleChords = 10){
+    for (const node of nodeMesh) { node.chordsLocal(); }
+}
+
+// destroy a percentage of the nodes
+export function killNodes( percent ){
+    for (const node of nodeMesh) { if(Math.random()<percent) node.available = false; }
+}
+
+// destroy a percentage of the nodes
+export function killLocale( globalLoc ){
+    for (const node of nodeMesh) {  if( node.geolocation === globalLoc) node.available = false; }
+}
+
+export function resetNodes(){
+    for (const node of nodeMesh) { node.available = true; }
+}

@@ -16,17 +16,6 @@ class Edge {
         
         this.lastAccessed = new Date();
         this.hopCount = 0;
-
-        // Real network information (get from the actual node/object)
-        const sourceNode = this.address;
-        this.publicIP = sourceNode.publicIP;
-        this.publicPort = sourceNode.publicPort;
-        this.natType = sourceNode.natType;
-        this.privateIP = sourceNode.privateIP;
-        this.privatePort = sourceNode.privatePort;
-
-        // For secure communication
-        // this.secret = sourceNode.secret;
     }
 
     get ID() { return this.geolocation+this.publicKey; }
