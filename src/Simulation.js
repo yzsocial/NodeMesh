@@ -131,8 +131,13 @@ export function scaleMessages(scaleMessages = 100, local) {
             console.error("Random node selection failed. One or both nodes are undefined.");
             continue; // Skip this iteration if nodes are not valid
         }
-
-        fromNode.sendMessage(new Edge(fromNode), new Edge(toNode), "message", "Hello");
+        if(fromNode.available) {
+            if(!toNode.available) console.log("toNode ", toNode.ID, " is not available");
+            fromNode.sendMessage(new Edge(fromNode), new Edge(toNode), "message", "Hello");
+        }
+        else {
+            console.log("fromNode ", fromNode.ID, " is not available"); 
+        }
     }
 }
 

@@ -33,7 +33,7 @@ class Node {
     encryptMessage(message, key) { return message;}
     decryptMessage(message, key) { return message;}
 
-    // this is a placeholder for testing. Actual connection ihes done
+    // this is a placeholder for testing. Actual connection is done
     // using a STUN server.
     sponsorNode(sponsoringNode) {
         // connect to the sponsoring node
