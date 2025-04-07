@@ -41,4 +41,20 @@ reportStats("20% offline")
 resetNodes();
 killNodes(0.25);
 scaleMessages(1000);
-reportStats("15% offline")
+reportStats("25% offline")
+resetNodes();
+killNodes(0.33);
+scaleMessages(1000);
+reportStats("33% offline")
+resetNodes();
+killNodes(0.40);
+scaleMessages(1000);
+reportStats("40% offline")
+resetNodes();
+killNodes(0.50);
+scaleMessages(1000);
+reportStats("50% offline")
+resetNodes();
+killNodes(0.66);
+scaleMessages(1000);
+reportStats("66% offline")

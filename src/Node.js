@@ -198,7 +198,7 @@ class Node {
         // Helper function to check and update best edge
         const checkEdge = (edge) => {
             // Calculate distance to target nodeId
-            if(edge.ID === nodeId && edge.address.available === false){
+            if(edge.address.available === false){
                 return;
             }
             if(direction !== "all" && nodeId === edge.ID) return;
@@ -247,6 +247,16 @@ class Node {
                 sendMessageData.toEdge.unshift(toEdge.ID); sendMessageData.toEdge = sendMessageData.toEdge.slice(-100);
                 sendMessageData.messageType.unshift(messageType); sendMessageData.messageType = sendMessageData.messageType.slice(-100);
                 sendMessageData.message.unshift(message); sendMessageData.message = sendMessageData.message.slice(-100);
+
+                if(closest.ID === fromEdge.lastID) { // we have been here before
+                    if(toEdge.address.available) {
+                        sendMessageData.errorCount++;
+                        console.log("toEdge is available - error!", closest.ID, fromEdge.lastID, toEdge.address);
+                        toEdge.address.sendMessage(toEdge, fromEdge, "message", "path");
+                    }
+                    return;
+                }
+                fromEdge.lastID = this.ID;
                 closest.address.sendMessage(fromEdge, toEdge, messageType, message); // this would be a network send
             }
             else console.error("No closest node found for ", messageType, toEdge, this);
@@ -298,7 +308,7 @@ class Node {
 
     // Process the received message
     processMessage(fromEdge, message) {
-        // console.log("processMessage --------------------- ", this.ID, fromEdge.ID, message);
+        if(message === "path") console.log("Path back", this.ID, fromEdge.ID, message);
     }
 
     // Update all instances of a edge across edges, previous, and next arrays

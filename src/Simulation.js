@@ -16,7 +16,8 @@ export const sendMessageData = {
     messageTypeCount: {},
     message: [],
     messageCount: 0,
-    messageHopCount: 0
+    messageHopCount: 0,
+    errorCount: 0
 };
 export let showFlag = false;
 
@@ -27,8 +28,9 @@ function resetSendMessageData(){
     sendMessageData. messageType = [];
     sendMessageData.messageTypeCount = {};
     sendMessageData. message = [];
-    sendMessageData.essageCount = 0,
-    sendMessageData.messageHopCount= 0
+    sendMessageData.messageCount = 0,
+    sendMessageData.messageHopCount= 0,
+    sendMessageData.errorCount = 0
 }
 // This is the number of nodes to create
 
@@ -69,14 +71,15 @@ export function reportStats(message) {
         nextCount[node.next.length] = (nextCount[node.next.length] || 0) + 1;
     }
     console.log("================================");
-    console.log(message);
-    console.log("--------------------------------");
+    console.log("===== ", message);
+    console.log("================================");
     console.log("Total Edges ", totalEdges);
     console.log("Edges ", edgeCount);
     console.log("Previous ", previousCount);
     console.log("Next ", nextCount);
     console.log("Message Types ", sendMessageData.messageTypeCount);
     console.log("**** Average Hop Count ", sendMessageData.messageHopCount/(sendMessageData.messageCount||1));
+    console.log("**** Error Count ", sendMessageData.errorCount);
     console.log("--------------------------------");
 
     resetSendMessageData();
@@ -120,7 +123,7 @@ export function scaleConnections(scaleConnections = 100) {
 
 export function scaleMessages(scaleMessages = 100, local) {
     resetSendMessageData();
-    console.log("Test scale messages 2");
+    console.log("Test scale messages ", scaleMessages, " local ", local);
     sendMessageData.messageHopCount = sendMessageData.messageCount = 0;
     for(let i = 0; i < scaleMessages; i++) {
         let fromNode = local ? getRandomNodeLocal() : getRandomNode();
@@ -132,11 +135,11 @@ export function scaleMessages(scaleMessages = 100, local) {
             continue; // Skip this iteration if nodes are not valid
         }
         if(fromNode.available) {
-            if(!toNode.available) console.log("toNode ", toNode.ID, " is not available");
+            // if(!toNode.available) console.log("toNode ", toNode.ID, " is not available");
             fromNode.sendMessage(new Edge(fromNode), new Edge(toNode), "message", "Hello");
         }
         else {
-            console.log("fromNode ", fromNode.ID, " is not available"); 
+            // console.log("fromNode ", fromNode.ID, " is not available"); 
         }
     }
 }
