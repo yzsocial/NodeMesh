@@ -190,7 +190,7 @@ class Node {
     // - search previous if the target nodeId is less than this nodeId
     // - search next if the target nodeId is greater than this nodeId
 
-    findEdge(nodeId, direction = "all") {
+    findEdge(nodeId, direction = "all", ignoreId) {
         let bestEdge = null;
         // needs to be closer than this node
         let bestDistance = Infinity; //Math.abs(this.ID-nodeId); 
@@ -202,6 +202,7 @@ class Node {
                 return;
             }
             if(direction !== "all" && nodeId === edge.ID) return;
+            //if(ignoreId === edge.ID) return;
             let distance = Math.abs(Keys.getDistance(nodeId, edge.ID));
             if (distance < bestDistance) {
                 bestDistance = distance;
@@ -237,9 +238,10 @@ class Node {
         fromEdge.hopCount++;
         sendMessageData.messageHopCount++;
         if (toEdge.ID === this.ID) { // this is me  
+            fromEdge.lastID = undefined;
             this.receiveMessage(fromEdge, messageType, message);
         } else {
-            const closest = this.findEdge(toEdge.ID); 
+            const closest = this.findEdge(toEdge.ID, "all", fromEdge.lastID); 
             if (closest) {
                 if(showFlag) console.log("sendMessage --------------------- ", closest.ID, this.ID, toEdge.ID);
                 sendMessageData.closest.unshift(closest.ID); sendMessageData.closest = sendMessageData.closest.slice(-100);
@@ -251,8 +253,8 @@ class Node {
                 if(closest.ID === fromEdge.lastID) { // we have been here before
                     if(toEdge.address.available) {
                         sendMessageData.errorCount++;
-                        console.log("toEdge is available - error!", closest.ID, fromEdge.lastID, toEdge.address);
-                        toEdge.address.sendMessage(toEdge, fromEdge, "message", "path");
+                        // console.log("toEdge is available - error!", closest.ID, fromEdge.lastID, toEdge.address);
+                        // toEdge.address.sendMessage(toEdge, fromEdge, "message", "path");
                     }
                     return;
                 }

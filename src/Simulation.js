@@ -80,6 +80,7 @@ export function reportStats(message) {
     console.log("Message Types ", sendMessageData.messageTypeCount);
     console.log("**** Average Hop Count ", sendMessageData.messageHopCount/(sendMessageData.messageCount||1));
     console.log("**** Error Count ", sendMessageData.errorCount);
+    testConnections()
     console.log("--------------------------------");
 
     resetSendMessageData();
@@ -87,11 +88,13 @@ export function reportStats(message) {
 
 export function initializeMesh(nodeCount) {
     const firstNode = new Node(); // Create the first node
+    firstNode.index = 1;
     nodeMesh.push(firstNode); // Ensure the first node is added to nodeMesh
 
     for(let i = 0; i < nodeCount; i++) {  
         const randomNode = getRandomNode(); // This should now return a valid node
         const node = new Node(randomNode); // Create a new Node
+        node.index = i+2;
         nodeMesh.push(node); // Add the new node to nodeMesh
         if(node.geolocation === 1)nodeMeshLocal.push(node);
         if(i % 10000 === 0) console.log("Node ", i, node.ID);
@@ -162,5 +165,38 @@ export function killLocale( globalLoc ){
 }
 
 export function resetNodes(){
-    for (const node of nodeMesh) { node.available = true; }
+    for (const node of nodeMesh) { node.available = true; node.connection = null;}
+}
+
+class ConnectionIndex {
+    constructor(index){
+        this.index = index;
+    }
+};
+export function testConnections(){
+    for (const node of nodeMesh) {
+        if(!node.available) continue;
+        let connectionIndex;
+        if(node.connectionIndex) connectionIndex = node.connectionIndex; // already visited
+        else connectionIndex = new ConnectionIndex(node.index); // new node
+        const connections = node.edges.concat(node.previous,node.next); // all connections from this node
+        for (const edge of connections) {
+            if(!edge.address) console.log("edge.address is undefined", edge);
+            if(edge?.address.available) // is available
+                if(edge.address.connectionIndex){
+                    if(edge.address.connectionIndex.index < connectionIndex.index)
+                        connectionIndex.index = edge.address.connectionIndex.index;
+                    else edge.address.connectionIndex.index = connectionIndex.index;
+                }
+                else edge.address.connectionIndex = connectionIndex;
+        }
+    }
+    const allConnections = [];
+    for (const node of nodeMesh) {
+        if(!node.available) continue;
+        const index = node.connectionIndex.index;
+        if(allConnections.includes(index)) continue;
+        allConnections.push(index);
+    }
+    console.log("All connections ", allConnections);
 }
