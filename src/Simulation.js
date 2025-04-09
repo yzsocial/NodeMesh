@@ -19,6 +19,8 @@ export const sendMessageData = {
     messageHopCount: 0,
     errorCount: 0
 };
+
+console.log("sendMessageData", sendMessageData); // easy access
 export let showFlag = false;
 
 function resetSendMessageData(){
@@ -159,13 +161,13 @@ export function killNodes( percent ){
     for (const node of nodeMesh) { if(Math.random()<percent) node.available = false; }
 }
 
-// destroy a percentage of the nodes
+// destroy a geolocation
 export function killLocale( globalLoc ){
     for (const node of nodeMesh) {  if( node.geolocation === globalLoc) node.available = false; }
 }
 
 export function resetNodes(){
-    for (const node of nodeMesh) { node.available = true; node.connection = null;}
+    for (const node of nodeMesh) { node.available = true; node.connectionIndex = null;}
 }
 
 class ConnectionIndex {
@@ -173,20 +175,36 @@ class ConnectionIndex {
         this.index = index;
     }
 };
+
+// test the connections of the nodes
+// We iterate through each node. If it does not have a connectionIndex, we create a new one
+// where its index is the node's index+1.
+// We then iterate through the connections of the node. If the connection does not have a connectionIndex, 
+// we set it to the current node's connectionIndex - not a copy but the actual reference.
+// If there is already a connectionIndex in the edge node, we check if its index is less than the current node's.
+// If it is, we set the current node's connectionIndex.index to the edge node's connectionIndex.index.
+// Or vice-verse is the current node's connectionIndex.index is less than the edge node's connectionIndex.index.
+// Since the connectionIndex is shared by all of the nodes in that subgraph, changing the index of one changes
+// for all of the nodes in that subgraph.
 export function testConnections(){
     for (const node of nodeMesh) {
         if(!node.available) continue;
         let connectionIndex;
         if(node.connectionIndex) connectionIndex = node.connectionIndex; // already visited
-        else connectionIndex = new ConnectionIndex(node.index); // new node
+        else {
+            connectionIndex = new ConnectionIndex(node.index); // new node
+            node.connectionIndex = connectionIndex;
+        }
         const connections = node.edges.concat(node.previous,node.next); // all connections from this node
         for (const edge of connections) {
             if(!edge.address) console.log("edge.address is undefined", edge);
-            if(edge?.address.available) // is available
+            if(edge.address.available) // is available
                 if(edge.address.connectionIndex){
                     if(edge.address.connectionIndex.index < connectionIndex.index)
                         connectionIndex.index = edge.address.connectionIndex.index;
-                    else edge.address.connectionIndex.index = connectionIndex.index;
+                    else {
+                        edge.address.connectionIndex.index = connectionIndex.index;
+                    }
                 }
                 else edge.address.connectionIndex = connectionIndex;
         }

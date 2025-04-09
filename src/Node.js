@@ -106,7 +106,7 @@ class Node {
 
     // response from a node that has approved a edge request
     approvedConnection(newEdge) {
-    //    console.log("approvedConnection --------------------- ", newEdge.ID, this.ID);
+        if(showFlag) console.log("approvedConnection --------------------- ", newEdge.ID, this.ID);
         const updated = this.updateEdge(newEdge);
         if (!updated){
             this.edges.push(new Edge(newEdge));
@@ -228,6 +228,12 @@ class Node {
         return bestEdge; // there should at least be one.
     }
 
+    randomEdge(){
+        let edges = this.edges.concat(this.previous, this.next).filter(edge => edge.address.available);
+        if(edges.length === 0) return null;
+        return edges[Math.floor(Math.random() * edges.length)];
+    }
+
     sendMessage(fromEdge, toEdge, messageType, message) {
         if(showFlag) console.log("sendMessage ", this.ID, fromEdge.ID, toEdge.ID, this.ID === toEdge.ID,messageType, message);
         if(fromEdge.hopCount === 0) {
@@ -239,6 +245,7 @@ class Node {
         sendMessageData.messageHopCount++;
         if (toEdge.ID === this.ID) { // this is me  
             fromEdge.lastID = undefined;
+            if(fromEdge.threeTries) console.log("threeTries SUCCESS", fromEdge.threeTries);
             this.receiveMessage(fromEdge, messageType, message);
         } else {
             const closest = this.findEdge(toEdge.ID, "all", fromEdge.lastID); 
@@ -250,11 +257,20 @@ class Node {
                 sendMessageData.messageType.unshift(messageType); sendMessageData.messageType = sendMessageData.messageType.slice(-100);
                 sendMessageData.message.unshift(message); sendMessageData.message = sendMessageData.message.slice(-100);
 
-                if(closest.ID === fromEdge.lastID) { // we have been here before
-                    if(toEdge.address.available) {
-                        sendMessageData.errorCount++;
-                        // console.log("toEdge is available - error!", closest.ID, fromEdge.lastID, toEdge.address);
-                        // toEdge.address.sendMessage(toEdge, fromEdge, "message", "path");
+                if(closest.ID === fromEdge.lastID) { // we have been here before, try something else
+                    if(toEdge.address.available) { // need to remove this in the real system
+
+                        const randomEdge = this.randomEdge();
+                        if(!fromEdge.threeTries) fromEdge.threeTries = 0;
+                        if(randomEdge && fromEdge.threeTries < 3) {
+                            fromEdge.threeTries++;
+                            console.log("threeTries", fromEdge.threeTries, fromEdge);
+                            fromEdge.lastID = this.ID;
+                            randomEdge.address.sendMessage(fromEdge, toEdge, messageType, message);
+                        } else {    
+                            sendMessageData.errorCount++;
+                            console.log("toEdge is available - error!", closest.ID, fromEdge.lastID, toEdge.address);
+                        }
                     }
                     return;
                 }
