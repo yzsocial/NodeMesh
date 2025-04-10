@@ -1,6 +1,6 @@
 import Edge from './edge.js';
 import { generateSHA1HashSync, capArraySize } from './utilities.js';
-import { nodeMesh, nodeMeshx, sendMessageData } from './simulation.js';
+import { nodeMesh, nodeMeshx } from './simulation.js';
 import { MAX_EDGES } from './constants.js';
 import { Keys } from './keys.js';
 
@@ -202,7 +202,7 @@ class Node {
                 return;
             }
             if(direction !== "all" && nodeId === edge.ID) return;
-            //if(ignoreId === edge.ID) return;
+            if(ignoreId === edge.ID) return;
             let distance = Math.abs(Keys.getDistance(nodeId, edge.ID));
             if (distance < bestDistance) {
                 bestDistance = distance;
@@ -214,12 +214,10 @@ class Node {
             for (const edge of this.edges) {
                 checkEdge(edge);
             }
- //console.log("bestEdge - edges1 ", nodeId, bestEdge?.ID, notExact);
         // Linear search through this.previous
         if(direction !== "next") for (const edge of this.previous) {
             checkEdge(edge);
         }
- //console.log("bestEdge - previous ", nodeId, bestEdge?.ID);
         // Linear search through this.next
         if(direction !== "previous") for (const edge of this.next) {
             checkEdge(edge);
@@ -236,42 +234,16 @@ class Node {
 
     sendMessage(fromEdge, toEdge, messageType, message) {
         if(showFlag) console.log("sendMessage ", this.ID, fromEdge.ID, toEdge.ID, this.ID === toEdge.ID,messageType, message);
-        if(fromEdge.hopCount === 0) {
-            sendMessageData.messageCount++;
-            if(!sendMessageData.messageTypeCount[messageType]) sendMessageData.messageTypeCount[messageType] = 0;
-            sendMessageData.messageTypeCount[messageType]++;
-        }
         fromEdge.hopCount++;
-        sendMessageData.messageHopCount++;
         if (toEdge.ID === this.ID) { // this is me  
             fromEdge.lastID = undefined;
-            if(fromEdge.threeTries) console.log("threeTries SUCCESS", fromEdge.threeTries);
             this.receiveMessage(fromEdge, messageType, message);
         } else {
             const closest = this.findEdge(toEdge.ID, "all", fromEdge.lastID); 
             if (closest) {
                 if(showFlag) console.log("sendMessage --------------------- ", closest.ID, this.ID, toEdge.ID);
-                sendMessageData.closest.unshift(closest.ID); sendMessageData.closest = sendMessageData.closest.slice(-100);
-                sendMessageData.fromEdge.unshift(fromEdge.ID); sendMessageData.fromEdge = sendMessageData.fromEdge.slice(-100);
-                sendMessageData.toEdge.unshift(toEdge.ID); sendMessageData.toEdge = sendMessageData.toEdge.slice(-100);
-                sendMessageData.messageType.unshift(messageType); sendMessageData.messageType = sendMessageData.messageType.slice(-100);
-                sendMessageData.message.unshift(message); sendMessageData.message = sendMessageData.message.slice(-100);
-
                 if(closest.ID === fromEdge.lastID) { // we have been here before, try something else
-                    if(toEdge.address.available) { // need to remove this in the real system
-
-                        const randomEdge = this.randomEdge();
-                        if(!fromEdge.threeTries) fromEdge.threeTries = 0;
-                        if(randomEdge && fromEdge.threeTries < 3) {
-                            fromEdge.threeTries++;
-                            console.log("threeTries", fromEdge.threeTries, fromEdge);
-                            fromEdge.lastID = this.ID;
-                            randomEdge.address.sendMessage(fromEdge, toEdge, messageType, message);
-                        } else {    
-                            sendMessageData.errorCount++;
-                            console.log("toEdge is available - error!", closest.ID, fromEdge.lastID, toEdge.address);
-                        }
-                    }
+                    console.log("Can't reach node!", closest.ID, fromEdge.lastID, toEdge.address);
                     return;
                 }
                 fromEdge.lastID = this.ID;
